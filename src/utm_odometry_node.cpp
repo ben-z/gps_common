@@ -15,6 +15,8 @@ using namespace gps_common;
 static ros::Publisher odom_pub;
 std::string frame_id, child_frame_id;
 double rot_cov;
+double datum_lat, datum_lon, datum_alt;
+double offset_x, offset_y, offset_z;
 
 void callback(const sensor_msgs::NavSatFixConstPtr& fix) {
   if (fix->status.status == sensor_msgs::NavSatStatus::STATUS_NO_FIX) {
@@ -29,7 +31,7 @@ void callback(const sensor_msgs::NavSatFixConstPtr& fix) {
   double northing, easting;
   std::string zone;
 
-  LLtoUTM(fix->latitude, fix->longitude, northing, easting, zone);
+  LLtoUTM(fix->latitude-datum_lat, fix->longitude-datum_lon, northing, easting, zone);
 
   if (odom_pub) {
     nav_msgs::Odometry odom;
@@ -42,9 +44,9 @@ void callback(const sensor_msgs::NavSatFixConstPtr& fix) {
 
     odom.child_frame_id = child_frame_id;
 
-    odom.pose.pose.position.x = easting;
-    odom.pose.pose.position.y = northing;
-    odom.pose.pose.position.z = fix->altitude;
+    odom.pose.pose.position.x = easting + offset_x;
+    odom.pose.pose.position.y = northing + offset_y;
+    odom.pose.pose.position.z = fix->altitude-datum_alt + offset_z;
     
     odom.pose.pose.orientation.x = 0;
     odom.pose.pose.orientation.y = 0;
@@ -84,6 +86,12 @@ int main (int argc, char **argv) {
   priv_node.param<std::string>("frame_id", frame_id, "");
   priv_node.param<std::string>("child_frame_id", child_frame_id, "");
   priv_node.param<double>("rot_covariance", rot_cov, 99999.0);
+  priv_node.param<double>("datum_lat", datum_lat, 0.0);
+  priv_node.param<double>("datum_lon", datum_lon, 0.0);
+  priv_node.param<double>("datum_alt", datum_alt, 0.0);
+  priv_node.param<double>("offset_x", offset_x, 0.0);
+  priv_node.param<double>("offset_y", offset_y, 0.0);
+  priv_node.param<double>("offset_z", offset_z, 0.0);
 
   odom_pub = node.advertise<nav_msgs::Odometry>("odom", 10);
 
